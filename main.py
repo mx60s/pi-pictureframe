@@ -96,7 +96,7 @@ while True:
             display_error('HTTP')
 
 
-    template = Image.open(os.path.join(pic_dir, 'template.png'))
+    template = 'template.png'
     draw = ImageDraw.Draw(template)
     
     
@@ -114,7 +114,7 @@ while True:
     '''
     # this could be a fun thing to put in
         
-    screen_output_file = os.path.join(pic_dir, 'screen_output.png')
+    screen_output_file = 'screen_output.png'
     template.save(screen_output_file)
     template.close()
     
