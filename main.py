@@ -11,6 +11,9 @@ from waveshare_epd import epd7in5_V2
 import sys
 import os
 import urllib
+import json
+from types import SimpleNamespace
+from configparser import ConfigParser
 
 font_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'font')
 
@@ -18,13 +21,12 @@ font_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'font')
 sys.path.append('lib')
 epd = epd7in5_V2.EPD()
 
-
-twitter_accs = ['obillustrations', 'cma_drawings']
+twitter_accs = ['@obillustrations', '@cma_drawings']
 last_retrieved_post = dict()
-
+CONFIG_FILE = "apikey.txt"
 
 # Define funciton for writing image and sleeping for a number of min.
-def write_to_screen(image, sleep_seconds):
+def write_to_screen(image: Image, sleep_seconds: int):
     print('Writing to screen.')
     # Write to screen
     h_image = Image.new('1', (epd.width, epd.height), 255)
@@ -40,7 +42,7 @@ def write_to_screen(image, sleep_seconds):
 # Define function for displaying error
 
 
-def display_error(error_source):
+def display_error(error_source: str):
     print('Error in the', error_source, 'request.')
 
     error_image = Image.new('1', (epd.width, epd.height), 255)
@@ -59,6 +61,16 @@ def display_error(error_source):
 
     write_to_screen(error_image_file, 30)
 
+def get_twitter_keys(filename: str) -> str:
+    config = ConfigParser()
+    config.read(filename)
+    api_key = config.get('auth', 'api_key')
+    api_secret = config.get('auth', 'api_secret')
+    access_token = config.get('auth', 'access_token')
+    access_token_secret = config.get('auth', 'access_token_secret')
+
+    return api_key, api_secret, access_token, access_token_secret
+
 
 # Set the fonts
 # font22 = ImageFont.truetype(os.path.join(font_dir, 'Font.ttc'), 22)
@@ -74,18 +86,25 @@ print('Initializing and clearing screen.')
 epd.init()
 epd.Clear()
 
-print('Connecting to Twitter')
-auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+key, secret, access_token, access_token_secret = get_twitter_keys(CONFIG_FILE)
+auth = tweepy.OAuthHandler(key, secret)
 auth.set_access_token(access_token, access_token_secret)
 
 api = tweepy.API(auth)
 
+result_set = api.user_timeline(screen_name=twitter_accs[0], count=1, exclude_replies=True, include_rts=False, tweet_mode="extended")
+status = result_set[0]
+json_str = json.dumps(status._json)
+post_object = json.loads(json_str, object_hook=lambda d: SimpleNamespace(**d))
+print(post_object.entities.media[0].media_url)
 
 while True:
-    most_recent_post = api.user_timeline(user_id: twitter_accs[0], count: 1, exclude_replies: true, include_rts: false)
-    for post in most_recent_post:
-        img_url = post.media.preview_image_url  # Not sure if this is the right way to get this field
-                                                # https://developer.twitter.com/en/docs/twitter-api/data-dictionary/object-model/media
+    result_set = api.user_timeline(screen_name=twitter_accs[0], count=1, exclude_replies=True, include_rts=False, tweet_mode="extended")
+    status = result_set[0]
+    json_str = json.dumps(status._json)
+    post_object = json.loads(json_str, object_hook=lambda d: SimpleNamespace(**d))
+    print(post_object.entities.media[0].media_url)
+    img_url = post_object.entities.media[0].media_url
     
     urllib.urlretrieve(img_url, "art_img.jpg")
 
